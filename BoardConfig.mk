@@ -58,7 +58,7 @@ TARGET_BOARD_PLATFORM := msmnile
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno640
 
 # APEX
-DEXPREOPT_GENERATE_APEX_IMAGE := true
+DEXPREOPT_GENERATE_APEX_IMAGE := false
 
 # Audio
 AUDIO_FEATURE_ENABLED_AAC_ADTS_OFFLOAD := true
@@ -82,7 +82,7 @@ BOARD_CHARGER_ENABLE_SUSPEND := true
 # Dex
 ifeq ($(HOST_OS),linux)
   ifneq ($(TARGET_BUILD_VARIANT),eng)
-    WITH_DEXPREOPT ?= true
+    WITH_DEXPREOPT ?= false
   endif
 endif
 
