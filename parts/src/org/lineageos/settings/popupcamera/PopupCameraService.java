@@ -35,16 +35,14 @@ import android.os.IBinder;
 import android.os.UserHandle;
 import android.util.Log;
 import android.view.WindowManager;
-import android.widget.Toast;
 import android.os.CountDownTimer;
 import android.os.SystemProperties;
 import android.widget.Button;
+import android.os.SystemClock;
 
 import org.lineageos.settings.R;
 import org.lineageos.settings.utils.FileUtils;
 import org.lineageos.settings.utils.LimitSizeList;
-
-     private boolean mMotorBusy = false;
 
 import vendor.xiaomi.hardware.motor.V1_0.IMotor;
 import vendor.xiaomi.hardware.motor.V1_0.IMotorCallback;
@@ -62,6 +60,7 @@ public class PopupCameraService extends Service {
     private static String mCameraState = "-1";
     private static Handler mHandler = new Handler();
     private IMotor mMotor = null;
+    private boolean mMotorBusy = false;
     private IMotorCallback mMotorStatusCallback;
     private final Object mLock = new Object();
     private boolean mMotorCalibrating = false;
@@ -79,6 +78,10 @@ public class PopupCameraService extends Service {
     private static final int MOTOR_STATUS_REQUEST_CALIB = 19;
     // Error dialog
     private boolean mDialogShowing;
+    private int mPopupFailedRecord = 0;
+    private int mTakebackFailedRecord = 0;
+    private static final int POPUP_FAILED_MAX_TRIES = 3;
+    private static final int TAKEBACK_FAILED_MAX_TRIES = 3;
     // Frequent dialog
     private static final int FREQUENT_TRIGGER_COUNT = SystemProperties.getInt("persist.sys.popup.frequent_times", 10);
     private LimitSizeList<Long> mPopupRecordList;
@@ -187,21 +190,21 @@ public class PopupCameraService extends Service {
         mDialogShowing = true;
         mHandler.post(() -> {
             Resources res = getResources();
-            AlertDialog alertDialog = new AlertDialog.Builder(this, R.style.SystemAlertDialogTheme)
+	    AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this, R.style.SystemAlertDialogTheme)
                     .setTitle(res.getString(R.string.popup_camera_tip))
                     .setMessage(res.getString(R.string.stop_operate_camera_frequently))
-                    .setPositiveButton(res.getString(android.R.string.ok) + " (5)", null)
-                    .create();
-            alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                    .setPositiveButton(res.getString(android.R.string.ok) + " (5)", null);
+            AlertDialog alertDialog = alertDialogBuilder.create();
+            alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
             alertDialog.setCancelable(false);
             alertDialog.setCanceledOnTouchOutside(false);
             alertDialog.show();
             alertDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialogInterface) {
-                        mDialogShowing = false;
-                    }
-                });
+            @Override
+                public void onDismiss(DialogInterface dialogInterface) {
+                    mDialogShowing = false;
+                }
+            });
             final Button btn = alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
             btn.setEnabled(false);
             CountDownTimer countDownTimer = new CountDownTimer(6000, 1000) {
@@ -237,7 +240,7 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
                     forceTakeback();
                     goBackHome();
                 }else if (status == MOTOR_STATUS_POPUP_JAMMED || status == MOTOR_STATUS_TAKEBACK_JAMMED) {
-                    showErrorDialog();
+                    handleError(status);
                 }
             }
         }
@@ -298,8 +301,10 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
                     if (mMotorCalibrating){
                         mMotorBusy = false;
                         goBackHome();
+			showCalibrationResult(-1);
                         return;
                     }else if (mCameraState.equals(openCameraState) && (status == MOTOR_STATUS_TAKEBACK_OK || status == MOTOR_STATUS_CALIB_OK)) {
+			    mTakebackFailedRecord = 0;
 			    if (!mProximityNear){
                             lightUp();
                             playSoundEffect(openCameraState);
@@ -309,7 +314,8 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
                         }else{
                             mShouldTryUpdateMotor = true;
                         }
-			 } else if (mCameraState.equals(closeCameraState) && (status == MOTOR_STATUS_POPUP_OK || status == MOTOR_STATUS_CALIB_OK)) {
+			mPopupFailedRecord = 0;
+			} else if (mCameraState.equals(closeCameraState) && (status == MOTOR_STATUS_POPUP_OK || status == MOTOR_STATUS_CALIB_OK)) {
                         lightUp();
                         playSoundEffect(closeCameraState);
                         mMotor.takebackMotor(1);
@@ -318,7 +324,7 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
 			 }else{
                         mMotorBusy = false;
                         if (status == MOTOR_STATUS_REQUEST_CALIB || status == MOTOR_STATUS_POPUP_JAMMED || status == MOTOR_STATUS_TAKEBACK_JAMMED || status == MOTOR_STATUS_CALIB_ERROR){
-                            showErrorDialog();
+                            handleError(status);
                         }
                         return;
                     }
@@ -359,42 +365,89 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
     }
 
     private void showCalibrationResult(int status){
-        mHandler.post(() -> {
-            Toast.makeText(PopupCameraService.this, status == MOTOR_STATUS_CALIB_OK ?
-                    R.string.popup_camera_calibrate_success :
-                    R.string.popup_camera_calibrate_failed, Toast.LENGTH_LONG).show();
-        });
-    }
-
-    private void showErrorDialog(){
         if (mDialogShowing){
             return;
         }
-        mmDialogShowing = true;
-        goBackHome();
+        mDialogShowing = true;
         mHandler.post(() -> {
             Resources res = getResources();
-            int dialogMessageResId = mCameraState.equals(closeCameraState) ?
-                R.string.popup_camera_takeback_falied_times_calibrate :
-                R.string.popup_camera_popup_falied_times_calibrate;
-            AlertDialog alertDialog = new AlertDialog.Builder(this, R.style.SystemAlertDialogTheme)
-                    .setTitle(res.getString(R.string.popup_camera_tip))
-                    .setMessage(res.getString(dialogMessageResId))
-                    .setPositiveButton(res.getString(R.string.popup_camera_calibrate_now),
-                            (dialog, which) -> {
-                            calibrateMotor();
-                    })
-                    .setNegativeButton(res.getString(android.R.string.cancel), null)
-                    .create();
-            alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            int dialogMessageResId = mMotorCalibrating ? R.string.popup_camera_calibrate_running : (status == MOTOR_STATUS_CALIB_OK ?
+                    R.string.popup_camera_calibrate_success :
+                    R.string.popup_camera_calibrate_failed);
+            AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this, R.style.SystemAlertDialogTheme);
+            alertDialogBuilder.setMessage(res.getString(dialogMessageResId));
+            alertDialogBuilder.setPositiveButton(android.R.string.ok, null);
+            AlertDialog alertDialog = alertDialogBuilder.create();
+            alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
+            alertDialog.setCancelable(false);
             alertDialog.setCanceledOnTouchOutside(false);
             alertDialog.show();
             alertDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialogInterface) {
-                        mDialogShowing = false;
+                @Override
+                public void onDismiss(DialogInterface dialogInterface) {
+                    mDialogShowing = false;
+                }
+            });
+        });
+    }
+
+    private void handleError(int status){
+        if (mDialogShowing){
+            return;
+        }
+        mDialogShowing = true;
+        goBackHome();
+        mHandler.post(() -> {
+            boolean needsCalib = false;
+            if (status == MOTOR_STATUS_REQUEST_CALIB || status == MOTOR_STATUS_CALIB_ERROR){
+                needsCalib = true;
+            }else if (status == MOTOR_STATUS_POPUP_JAMMED){
+                if (mPopupFailedRecord >= POPUP_FAILED_MAX_TRIES){
+                    needsCalib = true;
+                }else{
+                    mPopupFailedRecord++;
+                }
+            }else if (status == MOTOR_STATUS_TAKEBACK_JAMMED){
+                if (mTakebackFailedRecord >= TAKEBACK_FAILED_MAX_TRIES){
+                    needsCalib = true;
+                }else{
+                    mTakebackFailedRecord++;
+                    try {
+                        mMotor.takebackMotor(1);
+                    } catch(Exception e) {
                     }
+                }
+            }
+            Resources res = getResources();
+             int dialogMessageResId = needsCalib ? (mCameraState.equals(closeCameraState) ?
+                R.string.popup_camera_takeback_falied_times_calibrate :
+                R.string.popup_camera_popup_falied_times_calibrate) :
+                    (mCameraState.equals(closeCameraState) ?
+                        R.string.takeback_camera_front_failed :
+                        R.string.popup_camera_front_failed);
+            AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this, R.style.SystemAlertDialogTheme)
+                    .setTitle(res.getString(R.string.popup_camera_tip));
+            alertDialogBuilder.setMessage(res.getString(dialogMessageResId));
+            if (needsCalib){
+                alertDialogBuilder.setPositiveButton(res.getString(R.string.popup_camera_calibrate_now),
+                        (dialog, which) -> {
+                        calibrateMotor();
                 });
+                alertDialogBuilder.setNegativeButton(res.getString(android.R.string.cancel), null);
+            }else{
+                alertDialogBuilder.setPositiveButton(android.R.string.ok, null);
+            }
+            AlertDialog alertDialog = alertDialogBuilder.create();
+            alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
+            alertDialog.setCancelable(false);
+            alertDialog.setCanceledOnTouchOutside(false);
+            alertDialog.show();
+            alertDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                @Override
+                public void onDismiss(DialogInterface dialogInterface) {
+                    mDialogShowing = false;
+                }
+            });
         });
     }
 
