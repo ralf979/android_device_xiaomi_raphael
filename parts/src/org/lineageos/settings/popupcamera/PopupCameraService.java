@@ -34,6 +34,8 @@ import android.util.Log;
 
 import com.android.internal.util.aicp.FileUtils;
 
+     private boolean mMotorBusy = false;
+
 import vendor.xiaomi.hardware.motor.V1_0.IMotor;
 
 public class PopupCameraService extends Service {
@@ -129,21 +131,39 @@ public class PopupCameraService extends Service {
     }
 
     private void updateMotor(String cameraState) {
-        if (mMotor == null) return;
-        try {
-            if (cameraState.equals(openCameraState) && mMotor.getMotorStatus() == 13) {
-                lightUp();
-                playSoundEffect(openCameraState);
-                mMotor.popupMotor(1);
-                mSensorManager.registerListener(mFreeFallListener, mFreeFallSensor, SensorManager.SENSOR_DELAY_NORMAL);
-            } else if (cameraState.equals(closeCameraState) && mMotor.getMotorStatus() == 11) {
-                lightUp();
-                playSoundEffect(closeCameraState);
-                mMotor.takebackMotor(1);
-                mSensorManager.unregisterListener(mFreeFallListener, mFreeFallSensor);
+        final Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                mMotorBusy = true;
+                mHandler.postDelayed(() -> { mMotorBusy = false; }, 1200);
+                if (mMotor == null) return;
+                try {
+                   if (cameraState.equals(openCameraState) && mMotor.getMotorStatus() == 13) {
+                       lightUp();
+                       mMotor.popupMotor(1);
+                       mSensorManager.registerListener(mFreeFallListener, mFreeFallSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                   } else if (cameraState.equals(closeCameraState) && mMotor.getMotorStatus() == 11) {
+                       lightUp();
+                       mMotor.takebackMotor(1);
+                       mSensorManager.unregisterListener(mFreeFallListener, mFreeFallSensor);
+                   }
+                } catch(Exception e) {
+                }
             }
-        } catch (Exception e) {
-            // Do nothing
+        };
+        if (mMotorBusy){
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (mMotorBusy){
+                        mHandler.postDelayed(this, 100);
+                    }else{
+                        mHandler.post(r);
+                    }
+                }
+            }, 100);
+        }else{
+            mHandler.post(r);
         }
     }
 
