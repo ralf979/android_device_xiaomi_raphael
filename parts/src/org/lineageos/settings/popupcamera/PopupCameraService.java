@@ -41,7 +41,7 @@ import android.os.SystemProperties;
 import android.widget.Button;
 
 import org.lineageos.settings.R;
-import com.android.internal.util.aicp.FileUtils;
+import org.lineageos.settings.utils.FileUtils;
 import org.lineageos.settings.utils.LimitSizeList;
 
      private boolean mMotorBusy = false;
