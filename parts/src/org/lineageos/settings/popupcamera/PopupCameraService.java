@@ -36,9 +36,13 @@ import android.os.UserHandle;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.Toast;
+import android.os.CountDownTimer;
+import android.os.SystemProperties;
+import android.widget.Button;
 
 import org.lineageos.settings.R;
 import com.android.internal.util.aicp.FileUtils;
+import org.lineageos.settings.utils.LimitSizeList;
 
      private boolean mMotorBusy = false;
 
@@ -74,7 +78,10 @@ public class PopupCameraService extends Service {
     private static final int MOTOR_STATUS_CALIB_ERROR = 18;
     private static final int MOTOR_STATUS_REQUEST_CALIB = 19;
     // Error dialog
-    private boolean mErrorDialogShowing;
+    private boolean mDialogShowing;
+    // Frequent dialog
+    private static final int FREQUENT_TRIGGER_COUNT = SystemProperties.getInt("persist.sys.popup.frequent_times", 10);
+    private LimitSizeList<Long> mPopupRecordList;
     private String[] mSoundNames = {"popup_muqin_up.ogg", "popup_muqin_down.ogg", "popup_yingyan_up.ogg", "popup_yingyan_down.ogg", "popup_mofa_up.ogg", "popup_mofa_down.ogg", "popup_jijia_up.ogg", "popup_jijia_down.ogg", "popup_chilun_up.ogg", "popup_chilun_down.ogg", "popup_cangmen_up.ogg", "popup_cangmen_down.ogg"};
     private SoundPool mSoundPool;
     private int[] mSounds = new int[mSoundNames.length];
@@ -110,6 +117,7 @@ public class PopupCameraService extends Service {
     public void onCreate() {
         mSensorManager = getSystemService(SensorManager.class);
         mFreeFallSensor = mSensorManager.getDefaultSensor(FREE_FALL_SENSOR_ID);
+        mPopupRecordList = new LimitSizeList<>(FREQUENT_TRIGGER_COUNT);
         registerReceiver();
         mPopupCameraPreferences = new PopupCameraPreferences(this);
         mSoundPool = new SoundPool.Builder().setMaxStreams(1)
@@ -131,6 +139,53 @@ public class PopupCameraService extends Service {
         } catch (Exception e) {
             // Do nothing
         }
+    }
+
+    private void checkFrequentOperate() {
+        mPopupRecordList.add(Long.valueOf(SystemClock.elapsedRealtime()));
+        if (mPopupRecordList.isFull() && ((Long) mPopupRecordList.getLast()).longValue() - ((Long) mPopupRecordList.getFirst()).longValue() < 20000) {
+            showFrequentOperateDialog();
+        }
+    }
+
+    private void showFrequentOperateDialog(){
+        if (mDialogShowing){
+            return;
+        }
+        mDialogShowing = true;
+        mHandler.post(() -> {
+            Resources res = getResources();
+            AlertDialog alertDialog = new AlertDialog.Builder(this, R.style.SystemAlertDialogTheme)
+                    .setTitle(res.getString(R.string.popup_camera_tip))
+                    .setMessage(res.getString(R.string.stop_operate_camera_frequently))
+                    .setPositiveButton(res.getString(android.R.string.ok) + " (5)", null)
+                    .create();
+            alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            alertDialog.setCancelable(false);
+            alertDialog.setCanceledOnTouchOutside(false);
+            alertDialog.show();
+            alertDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialogInterface) {
+                        mDialogShowing = false;
+                    }
+                });
+            final Button btn = alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+            btn.setEnabled(false);
+            CountDownTimer countDownTimer = new CountDownTimer(6000, 1000) {
+                @Override
+                public void onTick(long millisUntilFinished) {
+                    btn.setText(res.getString(android.R.string.ok) + " (" + Long.valueOf(millisUntilFinished / 1000) + ")");
+                }
+
+                @Override
+                public void onFinish() {
+                    btn.setEnabled(true);
+                    btn.setText(res.getString(android.R.string.ok));
+                }
+            };
+            countDownTimer.start();
+        });
     }
 
 private final class MotorStatusCallback extends IMotorCallback.Stub {
@@ -215,12 +270,14 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
                         playSoundEffect(openCameraState);
                         mMotor.popupMotor(1);
                         mSensorManager.registerListener(mFreeFallListener, mFreeFallSensor, SensorManager.SENSOR_DELAY_NORMAL);
-                    } else if (mCameraState.equals(closeCameraState) && (status == MOTOR_STATUS_POPUP_OK || status == MOTOR_STATUS_CALIB_OK)) {
+                   	checkFrequentOperate();
+			 } else if (mCameraState.equals(closeCameraState) && (status == MOTOR_STATUS_POPUP_OK || status == MOTOR_STATUS_CALIB_OK)) {
                         lightUp();
                         playSoundEffect(closeCameraState);
                         mMotor.takebackMotor(1);
                         mSensorManager.unregisterListener(mFreeFallListener, mFreeFallSensor);
-                    }else{
+                        checkFrequentOperate();
+			 }else{
                         mMotorBusy = false;
                         if (status == MOTOR_STATUS_REQUEST_CALIB || status == MOTOR_STATUS_POPUP_JAMMED || status == MOTOR_STATUS_TAKEBACK_JAMMED || status == MOTOR_STATUS_CALIB_ERROR){
                             showErrorDialog();
@@ -272,10 +329,10 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
     }
 
     private void showErrorDialog(){
-        if (mErrorDialogShowing){
+        if (mDialogShowing){
             return;
         }
-        mErrorDialogShowing = true;
+        mmDialogShowing = true;
         goBackHome();
         mHandler.post(() -> {
             Resources res = getResources();
@@ -297,7 +354,7 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
             alertDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
                     @Override
                     public void onDismiss(DialogInterface dialogInterface) {
-                        mErrorDialogShowing = false;
+                        mDialogShowing = false;
                     }
                 });
         });
