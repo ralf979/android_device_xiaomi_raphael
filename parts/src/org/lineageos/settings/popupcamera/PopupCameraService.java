@@ -82,6 +82,10 @@ public class PopupCameraService extends Service {
     // Frequent dialog
     private static final int FREQUENT_TRIGGER_COUNT = SystemProperties.getInt("persist.sys.popup.frequent_times", 10);
     private LimitSizeList<Long> mPopupRecordList;
+    // Proximity sensor
+    private ProximitySensor mProximitySensor;
+    private boolean mProximityNear;
+    private boolean mShouldTryUpdateMotor;
     private String[] mSoundNames = {"popup_muqin_up.ogg", "popup_muqin_down.ogg", "popup_yingyan_up.ogg", "popup_yingyan_down.ogg", "popup_mofa_up.ogg", "popup_mofa_down.ogg", "popup_jijia_up.ogg", "popup_jijia_down.ogg", "popup_chilun_up.ogg", "popup_chilun_down.ogg", "popup_cangmen_up.ogg", "popup_cangmen_down.ogg"};
     private SoundPool mSoundPool;
     private int[] mSounds = new int[mSoundNames.length];
@@ -117,6 +121,7 @@ public class PopupCameraService extends Service {
     public void onCreate() {
         mSensorManager = getSystemService(SensorManager.class);
         mFreeFallSensor = mSensorManager.getDefaultSensor(FREE_FALL_SENSOR_ID);
+        mProximitySensor = new ProximitySensor(this, mSensorManager, mProximityListener);
         mPopupRecordList = new LimitSizeList<>(FREQUENT_TRIGGER_COUNT);
         registerReceiver();
         mPopupCameraPreferences = new PopupCameraPreferences(this);
@@ -140,6 +145,33 @@ public class PopupCameraService extends Service {
             // Do nothing
         }
     }
+    private void setProximitySensor(boolean enabled) {
+        if (mProximitySensor == null) return;
+        if (enabled) {
+            if (DEBUG) Log.d(TAG, "Proximity sensor enabling");
+            mProximitySensor.enable();
+        } else {
+            if (DEBUG) Log.d(TAG, "Proximity sensor disabling");
+            mProximitySensor.disable();
+        }
+    }
+
+    private ProximitySensor.ProximityListener mProximityListener =
+            new ProximitySensor.ProximityListener() {
+        public void onEvent(boolean isNear, long timestamp) {
+            mProximityNear = isNear;
+            if (DEBUG) Log.d(TAG, "Proximity sensor: isNear " + mProximityNear);
+            if (!mProximityNear && mShouldTryUpdateMotor){
+                if (DEBUG) Log.d(TAG, "Proximity sensor: mShouldTryUpdateMotor " + mShouldTryUpdateMotor);
+                mShouldTryUpdateMotor = false;
+                updateMotor();
+            }
+        }
+        public void onInit(boolean isNear, long timestamp) {
+            if (DEBUG) Log.d(TAG, "Proximity sensor init : " + isNear);
+            mProximityNear = isNear;
+        }
+    };
 
     private void checkFrequentOperate() {
         mPopupRecordList.add(Long.valueOf(SystemClock.elapsedRealtime()));
@@ -230,12 +262,14 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (DEBUG) Log.d(TAG, "Starting service");
+        setProximitySensor(true);
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         if (DEBUG) Log.d(TAG, "Destroying service");
+        setProximitySensor(false);
         unregisterReceiver(mIntentReceiver);
         super.onDestroy();
     }
@@ -266,11 +300,15 @@ private final class MotorStatusCallback extends IMotorCallback.Stub {
                         goBackHome();
                         return;
                     }else if (mCameraState.equals(openCameraState) && (status == MOTOR_STATUS_TAKEBACK_OK || status == MOTOR_STATUS_CALIB_OK)) {
-                        lightUp();
-                        playSoundEffect(openCameraState);
-                        mMotor.popupMotor(1);
-                        mSensorManager.registerListener(mFreeFallListener, mFreeFallSensor, SensorManager.SENSOR_DELAY_NORMAL);
-                   	checkFrequentOperate();
+			    if (!mProximityNear){
+                            lightUp();
+                            playSoundEffect(openCameraState);
+                            mMotor.popupMotor(1);
+                            mSensorManager.registerListener(mFreeFallListener, mFreeFallSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                            checkFrequentOperate();
+                        }else{
+                            mShouldTryUpdateMotor = true;
+                        }
 			 } else if (mCameraState.equals(closeCameraState) && (status == MOTOR_STATUS_POPUP_OK || status == MOTOR_STATUS_CALIB_OK)) {
                         lightUp();
                         playSoundEffect(closeCameraState);
