@@ -26,4 +26,9 @@
     <!-- Burn in protection -->
     <bool name="config_statusBarBurnInProtection">true</bool>
     <integer name="config_shift_interval">30</integer>
+
+
+    <!-- Whether the binned brightness sensor reports a value of 0 on proximity
+         near events -->
+    <bool name="doze_brightness_sensor_reports_proximity" translatable="false">false</bool>
 </resources>
