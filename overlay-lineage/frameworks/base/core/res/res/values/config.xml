@@ -99,4 +99,7 @@
 
     <!-- Boolean indicating whether the wifi chipset has dual frequency band support -->
     <bool translatable="false" name="config_wifi_dual_band_support">true</bool>
+
+    <!-- Whether to send camera status intent -->
+    <bool name="config_sendCameraStatusIntent">true</bool>
 </resources>
