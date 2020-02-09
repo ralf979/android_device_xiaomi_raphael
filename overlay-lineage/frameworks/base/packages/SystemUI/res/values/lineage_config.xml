@@ -17,9 +17,6 @@
     <!-- Color of the FOD view -->
     <color name="config_fodColor">#00ff00</color>
 
-    <!-- Show a custom view for FOD -->
-    <bool name="config_needCustomFODView">true</bool>
-
     <!-- Doze: does this device support STATE_DOZE?  -->
     <bool name="doze_display_state_supported">true</bool>
 
