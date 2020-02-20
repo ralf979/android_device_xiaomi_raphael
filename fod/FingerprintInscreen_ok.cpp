@@ -63,7 +63,6 @@ namespace inscreen {
 namespace V1_0 {
 namespace implementation {
 
-
 FingerprintInscreen::FingerprintInscreen() {
     xiaomiDisplayFeatureService = IDisplayFeature::getService();
     xiaomiFingerprintService = IXiaomiFingerprint::getService();
@@ -92,33 +91,35 @@ Return<void> FingerprintInscreen::onFinishEnroll() {
 int status_on = 0;
 
 Return<void> FingerprintInscreen::onPress() {
+//    xiaomiDisplayFeatureService->setFeature(0, 11, 1, 4);
     xiaomiFingerprintService->extCmd(COMMAND_NIT, 3);
     xiaomiDisplayFeatureService->setFeature(0, 11, 1, 5);
+    set(FOD_STATUS_PATH, FOD_STATUS_ON);
     status_on = 1;
     return Void();
 }
 
 Return<void> FingerprintInscreen::onRelease() {
+    set(FOD_STATUS_PATH, FOD_STATUS_OFF);
+    status_on = 0;
     xiaomiDisplayFeatureService->setFeature(0, 11, 1, 4);
     xiaomiFingerprintService->extCmd(COMMAND_NIT, 0);
     xiaomiDisplayFeatureService->setFeature(0, 11, 0, 5);
-    status_on = 0;
     return Void();
 }
 
 Return<void> FingerprintInscreen::onShowFODView() {
     xiaomiDisplayFeatureService->setFeature(0, 17, 1, 255);
     xiaomiDisplayFeatureService->setFeature(0, 11, 1, 4);
-    set(FOD_STATUS_PATH, FOD_STATUS_ON);
     return Void();
 }
 
 Return<void> FingerprintInscreen::onHideFODView() {
-    set(FOD_STATUS_PATH, FOD_STATUS_OFF);
     if (status_on == 1) {
+        set(FOD_STATUS_PATH, FOD_STATUS_OFF);
+        status_on = 0;
         xiaomiFingerprintService->extCmd(COMMAND_NIT, 0);
         xiaomiDisplayFeatureService->setFeature(0, 11, 0, 5);
-        status_on = 0;
     }
     xiaomiDisplayFeatureService->setFeature(0, 18, 0, 0);
     return Void();
@@ -154,7 +155,8 @@ Return<bool> FingerprintInscreen::shouldBoostBrightness() {
     return false;
 }
 
-Return<void> FingerprintInscreen::setCallback(const sp<IFingerprintInscreenCallback>&) {
+Return<void> FingerprintInscreen::setCallback(const sp<IFingerprintInscreenCallback>& callback) {
+    (void) callback;
     return Void();
 }
 
