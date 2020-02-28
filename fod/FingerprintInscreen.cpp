@@ -107,9 +107,9 @@ Return<void> FingerprintInscreen::onRelease() {
 }
 
 Return<void> FingerprintInscreen::onShowFODView() {
+	set(FOD_STATUS_PATH, FOD_STATUS_ON);
     xiaomiDisplayFeatureService->setFeature(0, 17, 1, 255);
     xiaomiDisplayFeatureService->setFeature(0, 11, 1, 4);
-    set(FOD_STATUS_PATH, FOD_STATUS_ON);
     return Void();
 }
 
