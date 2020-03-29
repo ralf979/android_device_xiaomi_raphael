@@ -13,10 +13,10 @@
 # limitations under the License.
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/carbon_raphael.mk
+    $(LOCAL_DIR)/aicp_raphael.mk
 
 COMMON_LUNCH_CHOICES := \
-    carbon_raphael-user \
-    carbon_raphael-userdebug \
-    carbon_raphael-eng
+    aicp_raphael-user \
+    aicp_raphael-userdebug \
+    aicp_raphael-eng
 
