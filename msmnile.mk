@@ -241,7 +241,6 @@ PRODUCT_PACKAGES += \
     init.qcom.usb.rc \
     init.raphael.rc \
     init.target.rc \
-    init.panel_info.sh \
     ueventd.qcom.rc
 
 # IPA
