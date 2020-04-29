@@ -423,8 +423,8 @@
          brightness modes but only the maximum brightness value obtainable in a sustainable manner.
          This array should be equal in size to config_screenBrightnessBacklight -->
     <array name="config_screenBrightnessNits">
-        <item>1.68</item>
-        <item>430.0</item>
+        <item>2.0</item>
+        <item>450.0</item>
     </array>
 
     <!-- Screen brightness used to dim the screen when the user activity
@@ -435,7 +435,7 @@
     <!-- Screen brightness used to dim the screen while dozing in a very low power state.
          May be less than the minimum allowed brightness setting
          that can be set by the user. -->
-    <integer name="config_screenBrightnessDoze">17</integer>
+    <integer name="config_screenBrightnessDoze">15</integer>
 
     <!-- Default screen brightness setting.
          Must be in the range specified by minimum and maximum. -->
@@ -598,16 +598,13 @@
     <!-- Boolean indicating whether 802.11r Fast BSS Transition is enabled on this platform -->
     <bool translatable="false" name="config_wifi_fast_bss_transition_enabled">true</bool>
 
+    <!-- True if the display hardware only has brightness buckets rather than a full range of
+         backlight values -->
+    <bool name="config_displayBrightnessBucketsInDoze">true</bool>
+
     <!-- Whether UI for multi user should be shown -->
     <bool name="config_enableMultiUserUI">true</bool>
 
     <!--  Maximum number of supported users -->
     <integer name="config_multiuserMaximumUsers">4</integer>
-
-    <!-- Whether the display blanks itself when transitioning from a doze to a non-doze state -->
-    <bool name="config_displayBlanksAfterDoze">false</bool>
-
-    <!-- True if the display hardware only has brightness buckets rather than a full range of
-         backlight values -->
-    <bool name="config_displayBrightnessBucketsInDoze">true</bool>
 </resources>
