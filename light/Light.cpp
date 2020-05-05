@@ -26,6 +26,7 @@
 //#define BLUE_LED        "/sys/class/leds/blue/"  //Right LED
 #define GREEN_LED       "/sys/class/leds/green/"  //Left LED
 
+#define BREATH          "breath"
 #define BRIGHTNESS      "brightness"
 
 #define MAX_LED_BRIGHTNESS    255
@@ -130,6 +131,9 @@ static inline bool isStateEqual(const LightState& first, const LightState& secon
 
 /* Keep sorted in the order of importance. */
 static std::vector<LightBackend> backends = {
+    { Type::ATTENTION, handleNotification },
+    { Type::NOTIFICATIONS, handleNotification },
+    { Type::BATTERY, handleNotification },
     { Type::BACKLIGHT, handleBacklight },
 };
 
