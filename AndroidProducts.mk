@@ -13,10 +13,10 @@
 # limitations under the License.
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/aicp_raphael.mk
+    $(LOCAL_DIR)/bliss_raphael.mk
 
 COMMON_LUNCH_CHOICES := \
-    aicp_raphael-user \
-    aicp_raphael-userdebug \
-    aicp_raphael-eng
+    bliss_raphael-user \
+    bliss_raphael-userdebug \
+    bliss_raphael-eng
 
