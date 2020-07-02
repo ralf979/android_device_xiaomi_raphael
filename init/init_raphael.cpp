@@ -93,29 +93,5 @@ void vendor_load_properties()
     property_override("ro.build.description", "raphael-user 10 QKQ1.190825.002 V11.0.8.0 release-keys");
     property_override_dual("ro.build.fingerprint", "ro.vendor.build.fingerprint", "google/coral/coral:10/QQ3A.200605.001/6392402:user/release-keys");
 
-    std::string region = android::base::GetProperty("ro.boot.hwc", "");
-
-    if (region.find("CN") != std::string::npos) 
-    {
-        property_override("ro.build.product", "raphaelin");
-        property_override("ro.product.device", "raphaelin");
-        property_override("ro.product.model", "Redmi K20 Pro");
-    } 
-    else if (region.find("INDIA") != std::string::npos) 
-    {
-        property_override("ro.build.product", "raphael");
-        property_override("ro.product.device", "raphael");
-        property_override("ro.product.model", "Redmi K20 Pro");
-    } 
-    else if (region.find("GLOBAL") != std::string::npos) 
-    {
-        property_override("ro.build.product", "raphael");
-        property_override("ro.product.device", "raphael");
-        property_override("ro.product.model", "Mi 9T Pro");
-    } 
-    else {
-        LOG(ERROR) << __func__ << ": unexcepted region!";
-    }
-
     load_dalvikvm_properties();
 }
