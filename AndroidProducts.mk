@@ -4,5 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+COMMON_LUNCH_CHOICES := cygnus_raphael-userdebug
+
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/lineage_raphael.mk
+    $(LOCAL_DIR)/cygnus_raphael.mk
