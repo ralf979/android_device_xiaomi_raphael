@@ -395,6 +395,9 @@
     <!-- Specifies the maximum burn-in offset vertically. -->
     <integer name="config_burnInProtectionMaxVerticalOffset">40</integer>
 
+    <!-- True if the firmware supports p2p MAC randomization -->
+    <bool name="config_wifi_p2p_mac_randomization_supported">true</bool>
+
     <!-- FOD fingerprint scanner -->
     <bool name="config_needCustomFODView">true</bool>
 
