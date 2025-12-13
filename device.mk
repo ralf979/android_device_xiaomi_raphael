@@ -31,6 +31,10 @@ PRODUCT_PACKAGES += \
     libmegface \
     libpiex_shim
 
+$(call inherit-product-if-exists, vendor/xiaomi/miuicamera/config.mk)
+$(call soong_config_set_bool,camera,override_format_from_reserved,true)
+$(call soong_config_set,camera,package_name,com.android.camera)
+
 # Camera motor
 PRODUCT_PACKAGES += \
     vendor.xiaomi.hardware.motor@1.0-service.xml
